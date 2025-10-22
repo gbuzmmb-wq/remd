@@ -6,6 +6,7 @@ class EmployeeManager {
         this.isAdmin = false;
         this.adminPassword = '070807';
         this.uploadDate = null;
+        this.globalDataKey = 'remd_global_data';
         this.init();
     }
 
@@ -14,6 +15,7 @@ class EmployeeManager {
         this.setupDragAndDrop();
         this.loadDataFromStorage();
         this.checkAdminStatus();
+        this.startDataSync();
     }
 
     setupEventListeners() {
@@ -253,14 +255,27 @@ class EmployeeManager {
             employees: this.employees,
             maxValue: this.maxValue,
             uploadDate: this.uploadDate,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isGlobal: true
         };
+
+        // Сохраняем глобально для всех пользователей
+        localStorage.setItem(this.globalDataKey, JSON.stringify(dataToSave));
+
+        // Также сохраняем локально для совместимости
         localStorage.setItem('employeeData', JSON.stringify(dataToSave));
     }
 
     loadDataFromStorage() {
         try {
-            const savedData = localStorage.getItem('employeeData');
+            // Сначала пытаемся загрузить глобальные данные
+            let savedData = localStorage.getItem(this.globalDataKey);
+
+            // Если глобальных данных нет, загружаем локальные
+            if (!savedData) {
+                savedData = localStorage.getItem('employeeData');
+            }
+
             if (savedData) {
                 const data = JSON.parse(savedData);
 
@@ -279,11 +294,13 @@ class EmployeeManager {
                 } else {
                     // Удаляем устаревшие данные
                     localStorage.removeItem('employeeData');
+                    localStorage.removeItem(this.globalDataKey);
                 }
             }
         } catch (error) {
             console.error('Ошибка при загрузке данных:', error);
             localStorage.removeItem('employeeData');
+            localStorage.removeItem(this.globalDataKey);
         }
     }
 
@@ -298,7 +315,9 @@ class EmployeeManager {
             this.filteredEmployees = [];
             this.maxValue = 0;
 
+            // Очищаем и глобальные, и локальные данные
             localStorage.removeItem('employeeData');
+            localStorage.removeItem(this.globalDataKey);
 
             // Скрываем элементы интерфейса
             document.getElementById('controls').style.display = 'none';
@@ -370,6 +389,43 @@ class EmployeeManager {
         if (savedAdminStatus === 'true') {
             this.isAdmin = true;
             this.updateAdminUI();
+        }
+    }
+
+    startDataSync() {
+        // Проверяем обновления данных каждые 30 секунд
+        setInterval(() => {
+            this.checkForUpdates();
+        }, 30000);
+    }
+
+    checkForUpdates() {
+        try {
+            const globalData = localStorage.getItem(this.globalDataKey);
+            if (globalData) {
+                const data = JSON.parse(globalData);
+
+                // Если глобальные данные новее локальных
+                if (this.uploadDate && data.uploadDate) {
+                    const globalDate = new Date(data.uploadDate);
+                    const localDate = new Date(this.uploadDate);
+
+                    if (globalDate > localDate) {
+                        // Обновляем данные
+                        this.employees = data.employees || [];
+                        this.maxValue = data.maxValue || 0;
+                        this.uploadDate = globalDate;
+                        this.filteredEmployees = [...this.employees];
+
+                        if (this.employees.length > 0) {
+                            this.displayEmployees();
+                            this.showControls();
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка при синхронизации данных:', error);
         }
     }
 }
