@@ -28,9 +28,6 @@ class EmployeeManager {
         const loginModal = document.getElementById('loginModal');
         const closeModal = document.getElementById('closeModal');
         const loginForm = document.getElementById('loginForm');
-        const exportDataBtn = document.getElementById('exportDataBtn');
-        const importDataBtn = document.getElementById('importDataBtn');
-        const importFileInput = document.getElementById('importFileInput');
 
         uploadArea.addEventListener('click', () => {
             if (this.isAdmin) {
@@ -44,13 +41,10 @@ class EmployeeManager {
         searchInput.addEventListener('input', (e) => this.filterEmployees(e.target.value));
         clearDataBtn.addEventListener('click', () => this.clearData());
 
-        loginBtn.addEventListener('click', () => this.showLoginModal());
-        logoutBtn.addEventListener('click', () => this.logout());
-        closeModal.addEventListener('click', () => this.hideLoginModal());
-        loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-        exportDataBtn.addEventListener('click', () => this.exportData());
-        importDataBtn.addEventListener('click', () => importFileInput.click());
-        importFileInput.addEventListener('change', (e) => this.importData(e.target.files[0]));
+        if (loginBtn) loginBtn.addEventListener('click', () => this.showLoginModal());
+        if (logoutBtn) logoutBtn.addEventListener('click', () => this.logout());
+        if (closeModal) closeModal.addEventListener('click', () => this.hideLoginModal());
+        if (loginForm) loginForm.addEventListener('submit', (e) => this.handleLogin(e));
 
         // Закрытие модального окна при клике вне его
         loginModal.addEventListener('click', (e) => {
@@ -282,20 +276,14 @@ class EmployeeManager {
         const controls = document.getElementById('controls');
         const tableContainer = document.getElementById('tableContainer');
         const clearDataBtn = document.getElementById('clearDataBtn');
-        const exportDataBtn = document.getElementById('exportDataBtn');
-        const importDataBtn = document.getElementById('importDataBtn');
 
-        controls.style.display = 'flex';
-        tableContainer.style.display = 'block';
+        if (controls) controls.style.display = 'flex';
+        if (tableContainer) tableContainer.style.display = 'block';
 
         if (this.isAdmin) {
-            clearDataBtn.style.display = 'block';
-            exportDataBtn.style.display = 'block';
-            importDataBtn.style.display = 'block';
+            if (clearDataBtn) clearDataBtn.style.display = 'block';
         } else {
-            clearDataBtn.style.display = 'none';
-            exportDataBtn.style.display = 'none';
-            importDataBtn.style.display = 'none';
+            if (clearDataBtn) clearDataBtn.style.display = 'none';
         }
     }
 
