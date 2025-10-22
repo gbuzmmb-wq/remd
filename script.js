@@ -115,6 +115,8 @@ class EmployeeManager {
     }
 
     processExcelData(data) {
+        console.log('Обрабатываем Excel данные:', data);
+
         if (!data || data.length < 2) {
             alert('Файл не содержит данных или имеет неправильный формат');
             return;
@@ -122,12 +124,15 @@ class EmployeeManager {
 
         // Пропускаем заголовки и обрабатываем данные
         const rows = data.slice(1).filter(row => row.length >= 2 && row[0] && row[1]);
+        console.log('Найдено строк:', rows.length);
 
         this.employees = rows.map((row, index) => ({
             id: index + 1,
             name: this.cleanName(row[0]),
             quantity: this.parseQuantity(row[1])
         })).filter(emp => emp.name && emp.quantity !== null);
+
+        console.log('Обработано сотрудников:', this.employees.length);
 
         if (this.employees.length === 0) {
             alert('Не удалось найти данные сотрудников в файле');
@@ -136,6 +141,7 @@ class EmployeeManager {
 
         // Вычисляем максимальное значение
         this.maxValue = Math.max(...this.employees.map(emp => emp.quantity));
+        console.log('Максимальное значение:', this.maxValue);
 
         // Сортируем по количеству (убывание)
         this.employees.sort((a, b) => b.quantity - a.quantity);
@@ -147,9 +153,13 @@ class EmployeeManager {
 
         this.filteredEmployees = [...this.employees];
         this.uploadDate = new Date();
+        console.log('Дата загрузки:', this.uploadDate);
+
         this.saveDataToStorage();
         this.displayEmployees();
         this.showControls();
+
+        console.log('Данные успешно обработаны и сохранены');
     }
 
     cleanName(name) {
@@ -185,6 +195,8 @@ class EmployeeManager {
     }
 
     displayEmployees() {
+        console.log('Отображаем сотрудников...');
+
         const tableBody = document.getElementById('tableBody');
         const tableContainer = document.getElementById('tableContainer');
         const noData = document.getElementById('noData');
@@ -192,6 +204,16 @@ class EmployeeManager {
         const maxValue = document.getElementById('maxValue');
         const filteredCount = document.getElementById('filteredCount');
         const uploadDate = document.getElementById('uploadDate');
+
+        console.log('Элементы найдены:', {
+            tableBody: !!tableBody,
+            tableContainer: !!tableContainer,
+            noData: !!noData,
+            totalCount: !!totalCount,
+            maxValue: !!maxValue,
+            filteredCount: !!filteredCount,
+            uploadDate: !!uploadDate
+        });
 
         // Обновляем счетчики
         totalCount.textContent = this.employees.length;
@@ -205,12 +227,20 @@ class EmployeeManager {
             uploadDate.textContent = '--';
         }
 
+        console.log('Счетчики обновлены:', {
+            totalCount: this.employees.length,
+            maxValue: this.maxValue,
+            filteredCount: this.filteredEmployees.length
+        });
+
         if (this.filteredEmployees.length === 0) {
+            console.log('Нет данных для отображения');
             tableContainer.style.display = 'none';
             noData.style.display = 'block';
             return;
         }
 
+        console.log('Отображаем таблицу с', this.filteredEmployees.length, 'записями');
         tableContainer.style.display = 'block';
         noData.style.display = 'none';
 
@@ -233,6 +263,8 @@ class EmployeeManager {
             `;
             tableBody.appendChild(row);
         });
+
+        console.log('Таблица заполнена');
     }
 
     showControls() {
@@ -268,34 +300,47 @@ class EmployeeManager {
 
     loadDataFromStorage() {
         try {
+            console.log('Загружаем данные...');
+
             // Сначала пытаемся загрузить глобальные данные
             let savedData = localStorage.getItem(this.globalDataKey);
+            console.log('Глобальные данные:', savedData ? 'найдены' : 'не найдены');
 
             // Если глобальных данных нет, загружаем локальные
             if (!savedData) {
                 savedData = localStorage.getItem('employeeData');
+                console.log('Локальные данные:', savedData ? 'найдены' : 'не найдены');
             }
 
             if (savedData) {
                 const data = JSON.parse(savedData);
+                console.log('Данные загружены:', data);
 
                 // Проверяем, что данные не старше 24 часов
                 const hoursSinceSave = (Date.now() - data.timestamp) / (1000 * 60 * 60);
+                console.log('Часов с момента сохранения:', hoursSinceSave);
+
                 if (hoursSinceSave < 24) {
                     this.employees = data.employees || [];
                     this.maxValue = data.maxValue || 0;
                     this.uploadDate = data.uploadDate ? new Date(data.uploadDate) : null;
                     this.filteredEmployees = [...this.employees];
 
+                    console.log('Сотрудников загружено:', this.employees.length);
+
                     if (this.employees.length > 0) {
                         this.displayEmployees();
                         this.showControls();
+                        console.log('Данные отображены');
                     }
                 } else {
+                    console.log('Данные устарели, удаляем');
                     // Удаляем устаревшие данные
                     localStorage.removeItem('employeeData');
                     localStorage.removeItem(this.globalDataKey);
                 }
+            } else {
+                console.log('Нет сохраненных данных');
             }
         } catch (error) {
             console.error('Ошибка при загрузке данных:', error);
