@@ -1,0 +1,27 @@
+{
+  "name": "remd-system",
+  "version": "1.0.0",
+  "description": "Система управления количеством не подписанных РЭМД (СЭМД)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "excel",
+    "employees",
+    "management",
+    "web-app",
+    "javascript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/remd-system.git"
+  },
+  "homepage": "https://your-username.github.io/remd-system"
+}
