@@ -6,7 +6,7 @@ class EmployeeManager {
         this.isAdmin = false;
         this.adminPassword = '070807';
         this.uploadDate = null;
-        this.globalDataKey = 'remd_global_data';
+        this.dataUrl = 'https://gbuzmmb-wq.github.io/remd/data.json'; // URL файла данных в вашем репозитории
         this.init();
     }
 
@@ -28,6 +28,9 @@ class EmployeeManager {
         const loginModal = document.getElementById('loginModal');
         const closeModal = document.getElementById('closeModal');
         const loginForm = document.getElementById('loginForm');
+        const exportDataBtn = document.getElementById('exportDataBtn');
+        const importDataBtn = document.getElementById('importDataBtn');
+        const importFileInput = document.getElementById('importFileInput');
 
         uploadArea.addEventListener('click', () => {
             if (this.isAdmin) {
@@ -45,6 +48,9 @@ class EmployeeManager {
         logoutBtn.addEventListener('click', () => this.logout());
         closeModal.addEventListener('click', () => this.hideLoginModal());
         loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+        exportDataBtn.addEventListener('click', () => this.exportData());
+        importDataBtn.addEventListener('click', () => importFileInput.click());
+        importFileInput.addEventListener('change', (e) => this.importData(e.target.files[0]));
 
         // Закрытие модального окна при клике вне его
         loginModal.addEventListener('click', (e) => {
@@ -160,6 +166,11 @@ class EmployeeManager {
         this.showControls();
 
         console.log('Данные успешно обработаны и сохранены');
+
+        // Если администратор - предлагаем сохранить на сервер
+        if (this.isAdmin) {
+            this.saveDataToServer();
+        }
     }
 
     cleanName(name) {
@@ -271,14 +282,20 @@ class EmployeeManager {
         const controls = document.getElementById('controls');
         const tableContainer = document.getElementById('tableContainer');
         const clearDataBtn = document.getElementById('clearDataBtn');
+        const exportDataBtn = document.getElementById('exportDataBtn');
+        const importDataBtn = document.getElementById('importDataBtn');
 
         controls.style.display = 'flex';
         tableContainer.style.display = 'block';
 
         if (this.isAdmin) {
             clearDataBtn.style.display = 'block';
+            exportDataBtn.style.display = 'block';
+            importDataBtn.style.display = 'block';
         } else {
             clearDataBtn.style.display = 'none';
+            exportDataBtn.style.display = 'none';
+            importDataBtn.style.display = 'none';
         }
     }
 
@@ -302,15 +319,12 @@ class EmployeeManager {
         try {
             console.log('Загружаем данные...');
 
-            // Сначала пытаемся загрузить глобальные данные
-            let savedData = localStorage.getItem(this.globalDataKey);
-            console.log('Глобальные данные:', savedData ? 'найдены' : 'не найдены');
+            // Сначала пытаемся загрузить данные с сервера
+            this.loadDataFromServer();
 
-            // Если глобальных данных нет, загружаем локальные
-            if (!savedData) {
-                savedData = localStorage.getItem('employeeData');
-                console.log('Локальные данные:', savedData ? 'найдены' : 'не найдены');
-            }
+            // Затем загружаем локальные данные как резерв
+            let savedData = localStorage.getItem('employeeData');
+            console.log('Локальные данные:', savedData ? 'найдены' : 'не найдены');
 
             if (savedData) {
                 const data = JSON.parse(savedData);
@@ -335,9 +349,7 @@ class EmployeeManager {
                     }
                 } else {
                     console.log('Данные устарели, удаляем');
-                    // Удаляем устаревшие данные
                     localStorage.removeItem('employeeData');
-                    localStorage.removeItem(this.globalDataKey);
                 }
             } else {
                 console.log('Нет сохраненных данных');
@@ -345,7 +357,6 @@ class EmployeeManager {
         } catch (error) {
             console.error('Ошибка при загрузке данных:', error);
             localStorage.removeItem('employeeData');
-            localStorage.removeItem(this.globalDataKey);
         }
     }
 
@@ -471,6 +482,71 @@ class EmployeeManager {
             }
         } catch (error) {
             console.error('Ошибка при синхронизации данных:', error);
+        }
+    }
+
+    async loadDataFromServer() {
+        try {
+            console.log('Загружаем данные с сервера...');
+            const response = await fetch(this.dataUrl + '?t=' + Date.now()); // Добавляем timestamp для обхода кэша
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Данные с сервера загружены:', data);
+
+                if (data.employees && data.employees.length > 0) {
+                    this.employees = data.employees;
+                    this.maxValue = data.maxValue || 0;
+                    this.uploadDate = data.uploadDate ? new Date(data.uploadDate) : null;
+                    this.filteredEmployees = [...this.employees];
+
+                    console.log('Сотрудников загружено с сервера:', this.employees.length);
+
+                    this.displayEmployees();
+                    this.showControls();
+
+                    // Сохраняем локально для офлайн работы
+                    this.saveDataToStorage();
+                }
+            } else {
+                console.log('Данные с сервера не найдены');
+            }
+        } catch (error) {
+            console.log('Ошибка при загрузке с сервера:', error);
+        }
+    }
+
+    async saveDataToServer() {
+        if (!this.isAdmin) return;
+
+        try {
+            const dataToSave = {
+                employees: this.employees,
+                maxValue: this.maxValue,
+                uploadDate: this.uploadDate,
+                timestamp: Date.now()
+            };
+
+            console.log('Сохраняем данные на сервер...');
+
+            // Показываем инструкцию пользователю
+            const jsonData = JSON.stringify(dataToSave, null, 2);
+
+            // Создаем файл для скачивания
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            alert('Файл data.json скачан! Загрузите его в ваш репозиторий GitHub в папку remd, чтобы данные стали доступны всем пользователям.');
+
+        } catch (error) {
+            console.error('Ошибка при сохранении на сервер:', error);
         }
     }
 }
