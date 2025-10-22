@@ -1,4 +1,4 @@
-// Версия: 2.0 - Исправлены все ошибки с DOM элементами
+// Версия: 3.0 - Убрано автоматическое скачивание, добавлено модальное окно с инструкциями
 class EmployeeManager {
     constructor() {
         this.employees = [];
@@ -12,7 +12,7 @@ class EmployeeManager {
     }
 
     init() {
-        console.log('Инициализация EmployeeManager v2.0');
+        console.log('Инициализация EmployeeManager v3.0');
 
         this.setupEventListeners();
         this.setupDragAndDrop();
@@ -164,9 +164,9 @@ class EmployeeManager {
 
         console.log('Данные успешно обработаны и сохранены');
 
-        // Если администратор - предлагаем сохранить на сервер
+        // Если администратор - показываем инструкцию для ручного обновления
         if (this.isAdmin) {
-            this.saveDataToServer();
+            this.showServerUpdateInstructions();
         }
     }
 
@@ -542,38 +542,85 @@ class EmployeeManager {
         }
     }
 
-    async saveDataToServer() {
-        if (!this.isAdmin) return;
+    showServerUpdateInstructions() {
+        const dataToSave = {
+            employees: this.employees,
+            maxValue: this.maxValue,
+            uploadDate: this.uploadDate,
+            timestamp: Date.now()
+        };
 
-        try {
-            const dataToSave = {
-                employees: this.employees,
-                maxValue: this.maxValue,
-                uploadDate: this.uploadDate,
-                timestamp: Date.now()
-            };
+        const jsonData = JSON.stringify(dataToSave, null, 2);
 
-            console.log('Сохраняем данные на сервер...');
+        // Показываем модальное окно с инструкциями
+        this.showUpdateModal(jsonData);
+    }
 
-            // Показываем инструкцию пользователю
-            const jsonData = JSON.stringify(dataToSave, null, 2);
+    showUpdateModal(jsonData) {
+        // Создаем модальное окно
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        `;
 
-            // Создаем файл для скачивания
-            const blob = new Blob([jsonData], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'data.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+        const content = document.createElement('div');
+        content.style.cssText = `
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        `;
 
-            alert('Файл data.json скачан! Загрузите его в ваш репозиторий GitHub в папку remd, чтобы данные стали доступны всем пользователям.');
+        content.innerHTML = `
+            <h2 style="color: #2c3e50; margin-bottom: 20px;">📤 Обновление данных для всех пользователей</h2>
+            <p style="margin-bottom: 15px; color: #555;">Для того чтобы данные были видны всем пользователям:</p>
+            <ol style="margin-bottom: 20px; color: #555;">
+                <li>Скопируйте JSON данные ниже</li>
+                <li>Откройте ваш репозиторий на GitHub</li>
+                <li>Найдите файл <code>data.json</code></li>
+                <li>Нажмите "Edit" (карандаш)</li>
+                <li>Замените весь содержимое на скопированные данные</li>
+                <li>Нажмите "Commit changes"</li>
+            </ol>
+            <textarea readonly style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; font-size: 12px;">${jsonData}</textarea>
+            <div style="margin-top: 20px; text-align: center;">
+                <button id="copyData" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">📋 Копировать данные</button>
+                <button id="closeModal" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">❌ Закрыть</button>
+            </div>
+        `;
 
-        } catch (error) {
-            console.error('Ошибка при сохранении на сервер:', error);
-        }
+        modal.appendChild(content);
+        document.body.appendChild(modal);
+
+        // Обработчики событий
+        document.getElementById('copyData').onclick = () => {
+            navigator.clipboard.writeText(jsonData).then(() => {
+                alert('✅ Данные скопированы в буфер обмена!');
+            });
+        };
+
+        document.getElementById('closeModal').onclick = () => {
+            document.body.removeChild(modal);
+        };
+
+        // Закрытие по клику вне модального окна
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        };
     }
 }
 
