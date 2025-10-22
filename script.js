@@ -292,14 +292,10 @@ class EmployeeManager {
             employees: this.employees,
             maxValue: this.maxValue,
             uploadDate: this.uploadDate,
-            timestamp: Date.now(),
-            isGlobal: true
+            timestamp: Date.now()
         };
 
-        // Сохраняем глобально для всех пользователей
-        localStorage.setItem(this.globalDataKey, JSON.stringify(dataToSave));
-
-        // Также сохраняем локально для совместимости
+        // Сохраняем локально
         localStorage.setItem('employeeData', JSON.stringify(dataToSave));
     }
 
@@ -359,39 +355,51 @@ class EmployeeManager {
             this.filteredEmployees = [];
             this.maxValue = 0;
 
-            // Очищаем и глобальные, и локальные данные
+            // Очищаем локальные данные
             localStorage.removeItem('employeeData');
-            localStorage.removeItem(this.globalDataKey);
 
             // Скрываем элементы интерфейса
-            document.getElementById('controls').style.display = 'none';
-            document.getElementById('tableContainer').style.display = 'none';
-            document.getElementById('clearDataBtn').style.display = 'none';
+            const controls = document.getElementById('controls');
+            const tableContainer = document.getElementById('tableContainer');
+            const clearDataBtn = document.getElementById('clearDataBtn');
+            const searchInput = document.getElementById('searchInput');
+            const noData = document.getElementById('noData');
 
-            // Очищаем поле поиска
-            document.getElementById('searchInput').value = '';
-
-            // Показываем сообщение об отсутствии данных
-            document.getElementById('noData').style.display = 'block';
+            if (controls) controls.style.display = 'none';
+            if (tableContainer) tableContainer.style.display = 'none';
+            if (clearDataBtn) clearDataBtn.style.display = 'none';
+            if (searchInput) searchInput.value = '';
+            if (noData) noData.style.display = 'block';
         }
     }
 
     showLoginModal() {
-        document.getElementById('loginModal').style.display = 'block';
-        document.getElementById('password').focus();
+        const loginModal = document.getElementById('loginModal');
+        const passwordInput = document.getElementById('password');
+
+        if (loginModal) loginModal.style.display = 'block';
+        if (passwordInput) passwordInput.focus();
     }
 
     hideLoginModal() {
-        document.getElementById('loginModal').style.display = 'none';
-        document.getElementById('loginForm').reset();
-        document.getElementById('errorMessage').style.display = 'none';
+        const loginModal = document.getElementById('loginModal');
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+
+        if (loginModal) loginModal.style.display = 'none';
+        if (loginForm) loginForm.reset();
+        if (errorMessage) errorMessage.style.display = 'none';
     }
 
     handleLogin(e) {
         e.preventDefault();
 
-        const password = document.getElementById('password').value;
+        const passwordInput = document.getElementById('password');
         const errorMessage = document.getElementById('errorMessage');
+
+        if (!passwordInput) return;
+
+        const password = passwordInput.value;
 
         if (password === this.adminPassword) {
             this.isAdmin = true;
@@ -399,8 +407,10 @@ class EmployeeManager {
             this.hideLoginModal();
             localStorage.setItem('isAdmin', 'true');
         } else {
-            errorMessage.textContent = 'Неверный пароль';
-            errorMessage.style.display = 'block';
+            if (errorMessage) {
+                errorMessage.textContent = 'Неверный пароль';
+                errorMessage.style.display = 'block';
+            }
         }
     }
 
@@ -410,7 +420,8 @@ class EmployeeManager {
         localStorage.removeItem('isAdmin');
 
         // Скрываем кнопку очистки данных
-        document.getElementById('clearDataBtn').style.display = 'none';
+        const clearDataBtn = document.getElementById('clearDataBtn');
+        if (clearDataBtn) clearDataBtn.style.display = 'none';
     }
 
     updateAdminUI() {
@@ -419,12 +430,12 @@ class EmployeeManager {
         const adminName = document.getElementById('adminName');
 
         if (this.isAdmin) {
-            loginBtn.style.display = 'none';
-            adminInfo.style.display = 'flex';
-            adminName.textContent = 'Администратор';
+            if (loginBtn) loginBtn.style.display = 'none';
+            if (adminInfo) adminInfo.style.display = 'flex';
+            if (adminName) adminName.textContent = 'Администратор';
         } else {
-            loginBtn.style.display = 'block';
-            adminInfo.style.display = 'none';
+            if (loginBtn) loginBtn.style.display = 'block';
+            if (adminInfo) adminInfo.style.display = 'none';
         }
     }
 
