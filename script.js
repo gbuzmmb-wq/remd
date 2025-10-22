@@ -1,3 +1,4 @@
+// Версия: 2.0 - Исправлены все ошибки с DOM элементами
 class EmployeeManager {
     constructor() {
         this.employees = [];
@@ -11,6 +12,8 @@ class EmployeeManager {
     }
 
     init() {
+        console.log('Инициализация EmployeeManager v2.0');
+
         this.setupEventListeners();
         this.setupDragAndDrop();
         this.loadDataFromStorage();
@@ -273,18 +276,42 @@ class EmployeeManager {
     }
 
     showControls() {
+        console.log('showControls вызвана');
+
         const controls = document.getElementById('controls');
         const tableContainer = document.getElementById('tableContainer');
         const clearDataBtn = document.getElementById('clearDataBtn');
 
-        if (controls) controls.style.display = 'flex';
-        if (tableContainer) tableContainer.style.display = 'block';
+        console.log('Элементы в showControls:', {
+            controls: !!controls,
+            tableContainer: !!tableContainer,
+            clearDataBtn: !!clearDataBtn,
+            isAdmin: this.isAdmin
+        });
+
+        if (controls) {
+            controls.style.display = 'flex';
+            console.log('controls показан');
+        }
+
+        if (tableContainer) {
+            tableContainer.style.display = 'block';
+            console.log('tableContainer показан');
+        }
 
         if (this.isAdmin) {
-            if (clearDataBtn) clearDataBtn.style.display = 'block';
+            if (clearDataBtn) {
+                clearDataBtn.style.display = 'block';
+                console.log('clearDataBtn показан для админа');
+            }
         } else {
-            if (clearDataBtn) clearDataBtn.style.display = 'none';
+            if (clearDataBtn) {
+                clearDataBtn.style.display = 'none';
+                console.log('clearDataBtn скрыт');
+            }
         }
+
+        console.log('showControls завершена');
     }
 
     saveDataToStorage() {
