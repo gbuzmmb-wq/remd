@@ -1,4 +1,4 @@
-// Версия: 3.0 - Убрано автоматическое скачивание, добавлено модальное окно с инструкциями
+// Версия: 4.0 - Автоматическое обновление данных на сервере для всех пользователей
 class EmployeeManager {
     constructor() {
         this.employees = [];
@@ -164,9 +164,9 @@ class EmployeeManager {
 
         console.log('Данные успешно обработаны и сохранены');
 
-        // Если администратор - показываем инструкцию для ручного обновления
+        // Если администратор - автоматически обновляем данные на сервере
         if (this.isAdmin) {
-            this.showServerUpdateInstructions();
+            this.updateDataOnServer();
         }
     }
 
@@ -481,44 +481,56 @@ class EmployeeManager {
         }, 30000);
     }
 
-    checkForUpdates() {
+    async checkForUpdates() {
         try {
-            const globalData = localStorage.getItem(this.globalDataKey);
-            if (globalData) {
-                const data = JSON.parse(globalData);
-
-                // Если глобальные данные новее локальных
+            // Проверяем обновления на локальном сервере
+            const response = await fetch('/data.json' + '?t=' + Date.now());
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Если данные с сервера новее локальных
                 if (this.uploadDate && data.uploadDate) {
-                    const globalDate = new Date(data.uploadDate);
+                    const serverDate = new Date(data.uploadDate);
                     const localDate = new Date(this.uploadDate);
 
-                    if (globalDate > localDate) {
+                    if (serverDate > localDate) {
+                        console.log('🔄 Обнаружены новые данные, обновляем...');
+                        
                         // Обновляем данные
                         this.employees = data.employees || [];
                         this.maxValue = data.maxValue || 0;
-                        this.uploadDate = globalDate;
+                        this.uploadDate = serverDate;
                         this.filteredEmployees = [...this.employees];
 
                         if (this.employees.length > 0) {
                             this.displayEmployees();
                             this.showControls();
+                            
+                            // Сохраняем локально
+                            this.saveDataToStorage();
+                            
+                            // Показываем уведомление о обновлении
+                            this.showSuccessNotification('🔄 Данные автоматически обновлены!');
                         }
                     }
                 }
             }
         } catch (error) {
-            console.error('Ошибка при синхронизации данных:', error);
+            console.error('Ошибка при проверке обновлений:', error);
         }
     }
 
     async loadDataFromServer() {
         try {
             console.log('Загружаем данные с сервера...');
-            const response = await fetch(this.dataUrl + '?t=' + Date.now()); // Добавляем timestamp для обхода кэша
-
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Данные с сервера загружены:', data);
+            
+            // Сначала пытаемся загрузить с локального сервера
+            const localResponse = await fetch('/data.json' + '?t=' + Date.now());
+            
+            if (localResponse.ok) {
+                const data = await localResponse.json();
+                console.log('Данные с локального сервера загружены:', data);
 
                 if (data.employees && data.employees.length > 0) {
                     this.employees = data.employees;
@@ -526,7 +538,31 @@ class EmployeeManager {
                     this.uploadDate = data.uploadDate ? new Date(data.uploadDate) : null;
                     this.filteredEmployees = [...this.employees];
 
-                    console.log('Сотрудников загружено с сервера:', this.employees.length);
+                    console.log('Сотрудников загружено с локального сервера:', this.employees.length);
+
+                    this.displayEmployees();
+                    this.showControls();
+
+                    // Сохраняем локально для офлайн работы
+                    this.saveDataToStorage();
+                    return;
+                }
+            }
+            
+            // Если локальный сервер недоступен, пытаемся загрузить с GitHub
+            const response = await fetch(this.dataUrl + '?t=' + Date.now());
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Данные с GitHub загружены:', data);
+
+                if (data.employees && data.employees.length > 0) {
+                    this.employees = data.employees;
+                    this.maxValue = data.maxValue || 0;
+                    this.uploadDate = data.uploadDate ? new Date(data.uploadDate) : null;
+                    this.filteredEmployees = [...this.employees];
+
+                    console.log('Сотрудников загружено с GitHub:', this.employees.length);
 
                     this.displayEmployees();
                     this.showControls();
@@ -542,7 +578,7 @@ class EmployeeManager {
         }
     }
 
-    showServerUpdateInstructions() {
+    async updateDataOnServer() {
         const dataToSave = {
             employees: this.employees,
             maxValue: this.maxValue,
@@ -550,76 +586,99 @@ class EmployeeManager {
             timestamp: Date.now()
         };
 
-        const jsonData = JSON.stringify(dataToSave, null, 2);
+        try {
+            console.log('🔄 Отправляем данные на сервер...');
+            
+            const response = await fetch('/api/update-data', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dataToSave)
+            });
 
-        // Показываем модальное окно с инструкциями
-        this.showUpdateModal(jsonData);
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('✅ Данные успешно обновлены на сервере');
+                this.showSuccessNotification(`✅ Данные успешно обновлены для всех пользователей!<br>Обработано сотрудников: ${result.count}`);
+            } else {
+                console.error('❌ Ошибка при обновлении данных:', result.error);
+                this.showErrorNotification(`❌ Ошибка при обновлении данных: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('❌ Ошибка сети при обновлении данных:', error);
+            this.showErrorNotification(`❌ Ошибка сети при обновлении данных. Проверьте подключение к серверу.`);
+        }
     }
 
-    showUpdateModal(jsonData) {
-        // Создаем модальное окно
-        const modal = document.createElement('div');
-        modal.style.cssText = `
+    showSuccessNotification(message) {
+        this.showNotification(message, 'success');
+    }
+
+    showErrorNotification(message) {
+        this.showNotification(message, 'error');
+    }
+
+    showNotification(message, type = 'info') {
+        // Создаем уведомление
+        const notification = document.createElement('div');
+        notification.style.cssText = `
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             z-index: 10000;
+            max-width: 400px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.4;
+            animation: slideIn 0.3s ease-out;
         `;
 
-        const content = document.createElement('div');
-        content.style.cssText = `
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        `;
+        // Добавляем CSS анимацию
+        if (!document.getElementById('notification-styles')) {
+            const style = document.createElement('style');
+            style.id = 'notification-styles';
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
 
-        content.innerHTML = `
-            <h2 style="color: #2c3e50; margin-bottom: 20px;">📤 Обновление данных для всех пользователей</h2>
-            <p style="margin-bottom: 15px; color: #555;">Для того чтобы данные были видны всем пользователям:</p>
-            <ol style="margin-bottom: 20px; color: #555;">
-                <li>Скопируйте JSON данные ниже</li>
-                <li>Откройте ваш репозиторий на GitHub</li>
-                <li>Найдите файл <code>data.json</code></li>
-                <li>Нажмите "Edit" (карандаш)</li>
-                <li>Замените весь содержимое на скопированные данные</li>
-                <li>Нажмите "Commit changes"</li>
-            </ol>
-            <textarea readonly style="width: 100%; height: 200px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: monospace; font-size: 12px;">${jsonData}</textarea>
-            <div style="margin-top: 20px; text-align: center;">
-                <button id="copyData" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">📋 Копировать данные</button>
-                <button id="closeModal" style="background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">❌ Закрыть</button>
-            </div>
-        `;
+        notification.innerHTML = message;
 
-        modal.appendChild(content);
-        document.body.appendChild(modal);
+        document.body.appendChild(notification);
 
-        // Обработчики событий
-        document.getElementById('copyData').onclick = () => {
-            navigator.clipboard.writeText(jsonData).then(() => {
-                alert('✅ Данные скопированы в буфер обмена!');
-            });
-        };
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
 
-        document.getElementById('closeModal').onclick = () => {
-            document.body.removeChild(modal);
-        };
-
-        // Закрытие по клику вне модального окна
-        modal.onclick = (e) => {
-            if (e.target === modal) {
-                document.body.removeChild(modal);
-            }
+        // Закрытие по клику
+        notification.onclick = () => {
+            notification.style.animation = 'slideOut 0.3s ease-in';
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
         };
     }
 }
